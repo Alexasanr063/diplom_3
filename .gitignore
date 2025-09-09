@@ -1,0 +1,9 @@
+.venv
+.idea
+allure-results
+.DS_Store
+__pycache__/
+api/__pycache__/
+locators/__pycache__/
+pages/__pycache__/
+tests/__pycache__/
