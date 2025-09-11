@@ -19,48 +19,23 @@ class TestOrderFeed:
 
     @allure.description("Уникальность номеров заказов в ленте")
     def test_verify_unique_order_numbers(self, driver):
-        # Для этого теста нужно добавить метод в FeedPage
         feed_page = FeedPage(driver)
         feed_page.click_on_feed()
         feed_page.wait_for_order_feed()
         feed_page.wait_for_page_to_load()
 
-        # Получаем все элементы заказов
-        order_elements = feed_page.driver.find_elements(
-            *feed_page.main_page_locators.FIRST_ORDER_IN_FEED
-        )
-
-        # Извлекаем номера заказов (предполагая, что текст элемента содержит номер)
-        order_numbers = []
-        for order_element in order_elements:
-            order_text = order_element.text.strip()
-            # Пытаемся извлечь числовой номер из текста
-            try:
-                order_number = int(''.join(filter(str.isdigit, order_text)))
-                order_numbers.append(order_number)
-            except ValueError:
-                continue
-
+        order_numbers = feed_page.get_order_numbers_from_feed()
         assert len(order_numbers) == len(set(order_numbers)), "Найдены дублирующиеся номера заказов"
 
     @allure.description("Наличие статуса у всех заказов в ленте")
     def test_check_orders_have_statuses(self, driver):
-        # Для этого теста нужно добавить метод в FeedPage или использовать локаторы
         feed_page = FeedPage(driver)
         feed_page.click_on_feed()
         feed_page.wait_for_order_feed()
         feed_page.wait_for_page_to_load()
 
-        # Предполагаем, что статус находится в определенном элементе
-        # Нужно добавить соответствующий локатор в MainPageLocators
-        try:
-            status_elements = feed_page.driver.find_elements(
-                By.XPATH, '//div[contains(@class, "OrderFeed_textBox")]//p[contains(@class, "status")]'
-            )
-            order_statuses = [element.text.strip() for element in status_elements]
-            assert all(status for status in order_statuses), "Найдены заказы без статуса"
-        except:
-            pytest.skip("Локаторы для статусов заказов не настроены")
+        order_statuses = feed_page.get_order_statuses()
+        assert all(status for status in order_statuses), "Найдены заказы без статуса"
 
     @allure.description("Соответствие счетчика общего количества заказов")
     def test_validate_total_orders_counter(self, driver):
@@ -69,18 +44,8 @@ class TestOrderFeed:
         feed_page.wait_for_order_feed()
         feed_page.wait_for_page_to_load()
 
-        # Получаем значение счетчика
-        total_count_text = feed_page.orders_for_all_time_()
-        try:
-            total_count = int(''.join(filter(str.isdigit, total_count_text)))
-        except ValueError:
-            pytest.fail(f"Не удалось преобразовать счетчик в число: {total_count_text}")
-
-        # Получаем количество видимых заказов
-        order_elements = feed_page.driver.find_elements(
-            *feed_page.main_page_locators.FIRST_ORDER_IN_FEED
-        )
-        actual_feed_count = len(order_elements)
+        total_count = feed_page.get_total_orders_count()
+        actual_feed_count = feed_page.get_visible_orders_count()
 
         assert total_count >= actual_feed_count, f"Счетчик ({total_count}) меньше количества заказов ({actual_feed_count})"
 
@@ -91,9 +56,5 @@ class TestOrderFeed:
         feed_page.wait_for_order_feed()
         feed_page.wait_for_page_to_load()
 
-        today_count_text = feed_page.orders_for_today()
-        try:
-            today_count = int(''.join(filter(str.isdigit, today_count_text)))
-            assert today_count >= 0, f"Отрицательное значение счетчика: {today_count}"
-        except ValueError:
-            pytest.fail(f"Не удалось преобразовать счетчик в число: {today_count_text}")
+        today_count = feed_page.get_today_orders_count()
+        assert today_count >= 0, f"Отрицательное значение счетчика: {today_count}"
