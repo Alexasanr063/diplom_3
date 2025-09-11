@@ -1,3 +1,4 @@
+import pytest
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -18,12 +19,6 @@ class FeedPage(BasePage):
             EC.presence_of_element_located(self.main_page_locators.ORDER_ID)
         )
 
-    @allure.step("Ожидание открытия модального окна")
-    def wait_for_modal_to_open(self):
-        WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located(self.main_page_locators.MODAL_OPENED)
-        )
-
     @allure.step("Клик по кнопке ленты заказов")
     def click_on_feed(self):
         self.click_on_element(self.main_page_locators.ORDERS_FEED_LINK)
@@ -41,6 +36,64 @@ class FeedPage(BasePage):
     def wait_for_order_feed(self):
         self.wait_visibility_of_element(self.main_page_locators.FIRST_ORDER_IN_FEED)
 
+    @allure.step("Получение номеров заказов из ленты")
+    def get_order_numbers_from_feed(self):
+        order_elements = self.driver.find_elements(
+            *self.main_page_locators.FIRST_ORDER_IN_FEED
+        )
+
+        order_numbers = []
+        for order_element in order_elements:
+            order_text = order_element.text.strip()
+            try:
+                order_number = int(''.join(filter(str.isdigit, order_text)))
+                order_numbers.append(order_number)
+            except ValueError:
+                continue
+        return order_numbers
+
+    @allure.step("Получение статусов заказов")
+    def get_order_statuses(self):
+        try:
+            status_elements = self.driver.find_elements(
+                By.XPATH, '//div[contains(@class, "OrderFeed_textBox")]//p[contains(@class, "status")]'
+            )
+            return [element.text.strip() for element in status_elements]
+        except:
+            return []
+
+    @allure.step("Получение общего количества заказов")
+    def get_total_orders_count(self):
+        total_count_text = self.orders_for_all_time()
+        try:
+            return int(''.join(filter(str.isdigit, total_count_text)))
+        except ValueError:
+            pytest.fail(f"Не удалось преобразовать счетчик в число: {total_count_text}")
+
+    @allure.step("Получение количества заказов за сегодня")
+    def get_today_orders_count(self):
+        today_count_text = self.orders_for_today()
+        try:
+            return int(''.join(filter(str.isdigit, today_count_text)))
+        except ValueError:
+            pytest.fail(f"Не удалось преобразовать счетчик в число: {today_count_text}")
+
+    @allure.step("Получение количества видимых заказов")
+    def get_visible_orders_count(self):
+        order_elements = self.driver.find_elements(
+            *self.main_page_locators.FIRST_ORDER_IN_FEED
+        )
+        return len(order_elements)
+
+    @allure.step("Все заказы за все время")
+    def orders_for_all_time(self):
+        return self.text_of_element(self.main_page_locators.ORDERS_FOR_ALL_TIME)
+
+    @allure.step("Все заказы за сегодня")
+    def orders_for_today(self):
+        return self.text_of_element(self.main_page_locators.ORDERS_FOR_TODAY)
+
+    # Остальные методы остаются без изменений
     @allure.step("Прокрутка к заказу")
     def scroll_to_order(self):
         self.scroll_to_element(self.main_page_locators.MY_ORDER_IN_ORDER_FEED)
@@ -50,14 +103,6 @@ class FeedPage(BasePage):
         return self.visibility_of_element(
             self.main_page_locators.MY_ORDER_IN_ORDER_FEED
         )
-
-    @allure.step("Все заказы за все время")
-    def orders_for_all_time_(self):
-        return self.text_of_element(self.main_page_locators.ORDERS_FOR_ALL_TIME)
-
-    @allure.step("Все заказы за сегодня")
-    def orders_for_today(self):
-        return self.text_of_element(self.main_page_locators.ORDERS_FOR_TODAY)
 
     @allure.step("Перемещение элемента в корзину")
     def drag_and_drop_bun(self):
@@ -72,21 +117,16 @@ class FeedPage(BasePage):
 
     @allure.step("Закрытие модального окна")
     def close_modal_window(self):
-        # Попытка клика по оверлею модального окна или использование JavaScript клика
         try:
-            # Ожидание полной видимости модального окна
             self.wait_visibility_of_element(
                 self.main_page_locators.MODAL_OPENED, timeout=5
             )
-            # Использование JavaScript для клика по кнопке закрытия
             close_button = self.driver.find_element(
                 *self.main_page_locators.CLOSE_MODAL_WINDOW_BUTTON
             )
             self.driver.execute_script("arguments[0].click();", close_button)
         except Exception:
-            # Резервный вариант: нажатие клавиши Escape
             from selenium.webdriver.common.keys import Keys
-
             self.driver.find_element("tag name", "body").send_keys(Keys.ESCAPE)
 
     @allure.step("Клик по кнопке конструктора на текущей странице")
@@ -115,8 +155,6 @@ class FeedPage(BasePage):
 
     @allure.step("Ожидание увеличения счетчика")
     def wait_for_counter_increase(self, locator, old_value, timeout=30):
-        # Ожидание увеличения числового счетчика от старого значения
-
         def counter_increased(driver):
             try:
                 current_text = driver.find_element(*locator).text
@@ -129,17 +167,11 @@ class FeedPage(BasePage):
 
     @allure.step("Ожидание конкретного номера заказа в ленте")
     def wait_for_specific_order_in_feed(self, expected_order_number, timeout=30):
-        # Ожидание появления конкретного номера заказа в разделе 'В работе' или любом другом
-
         def order_number_appears(driver):
             try:
-                # Попытка различных возможных локаторов для заказов в работе
                 possible_locators = [
                     self.main_page_locators.ORDER_IN_PROCESS_IN_FEED,
-                    (
-                        By.XPATH,
-                        '//div[contains(@class, "OrderFeed_textBox")]/ul/li[contains(@class, "digits")]',
-                    ),
+                    (By.XPATH, '//div[contains(@class, "OrderFeed_textBox")]/ul/li[contains(@class, "digits")]'),
                     (By.XPATH, '//li[contains(@class, "text_type_digits-default")]'),
                     (By.XPATH, f'//*[text()="{expected_order_number}"]'),
                     (By.XPATH, f'//*[contains(text(), "{expected_order_number}")]'),
@@ -150,10 +182,8 @@ class FeedPage(BasePage):
                         elements = driver.find_elements(*locator)
                         for element in elements:
                             element_text = element.text.strip()
-                            # Проверка содержит ли текст номер заказа
                             if str(expected_order_number) in element_text:
                                 return True
-                            # Также попытка парсинга как целого числа
                             try:
                                 if int(element_text) == expected_order_number:
                                     return True
