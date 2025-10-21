@@ -47,3 +47,4 @@ pytest tests/test_api_integration.py  # API tests
 - **API Classes** - Handle REST API interactions
 - **Test Fixtures** - Browser setup, user authentication
 - **Allure Integration** - Enhanced test reporting
+-  "Trigger CI"
